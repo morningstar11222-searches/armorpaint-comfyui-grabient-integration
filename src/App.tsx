@@ -1,11 +1,13 @@
 import { useCallback, useMemo, useState } from 'react';
-import OrigamiStage, { type SurfaceId, type SurfaceSelection } from './three/OrigamiStage';
+import OrigamiStage, { type SurfaceSelection } from './three/OrigamiStage';
 import MaterialViewer from './three/MaterialViewer';
 import { surfaces } from './data/surfaces';
 import { grabientPalettes } from './data/grabientPalettes';
 import { grabientAdapter } from './integrations/grabient/adapter';
 import { createArmorPaintImportManifest } from './integrations/armorpaint';
 import { materializeArmorPaintManifest, saveMaterializedTexture } from './integrations/materialize';
+import { runMaterialPipeline } from './integrations/materialPipeline';
+import { getConfiguredComfyWorkflow } from './config';
 import { useMaterialWorkspace } from './state/materialWorkspace';
 
 export default function App() {
@@ -16,13 +18,29 @@ export default function App() {
   const material = useMaterialWorkspace(active?.id ?? 'metal');
   const palette = useMemo(() => material.asset.metadata.grabientPaletteId ? grabientPalettes.find((item) => item.id === material.asset.metadata.grabientPaletteId) : undefined, [material.asset.metadata.grabientPaletteId]);
   const gradient = palette ? grabientAdapter.sample(palette, 9) : [];
+  const workflowConfigured = Boolean(import.meta.env.VITE_COMFY_WORKFLOW_JSON);
   const handleSelect = useCallback((selection: SurfaceSelection) => setActive(selection), []);
 
-  const applyPalette = async (id: string) => {
+  const applyPalette = (id: string) => {
     const next = grabientPalettes.find((item) => item.id === id);
     if (!next) return;
     material.updateAsset(grabientAdapter.applyToMaterial(material.asset, next));
     setStatus(`PALETTE / ${next.name.toUpperCase()}`);
+  };
+
+  const generateMaps = async () => {
+    if (!workflowConfigured) { setStatus('SET VITE_COMFY_WORKFLOW_JSON'); return; }
+    setBusy(true); setStatus('PREPARING COMFYUI');
+    try {
+      const result = await runMaterialPipeline(material.asset, palette, {
+        workflow: getConfiguredComfyWorkflow(),
+        onStatus: (next) => setStatus(next.toUpperCase()),
+      });
+      material.updateAsset(result.asset);
+      setStatus(`GENERATED / ${Object.keys(result.textures).length} MAPS`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message.toUpperCase() : 'GENERATION FAILED');
+    } finally { setBusy(false); }
   };
 
   const exportArmorPaint = async () => {
@@ -58,10 +76,10 @@ export default function App() {
             <section className="information">
               <span className="eyebrow">INFORMATION</span><h2>{selected.title}</h2><p className="subtitle">{selected.subtitle}</p><p className="description">{selected.description}</p>
               <div className="specs">{selected.specs.map((spec) => <span key={spec}>{spec}</span>)}</div>
-              <div className="palette-row" aria-label="Grabient palettes">{grabientPalettes.map((item) => <button key={item.id} onClick={() => void applyPalette(item.id)} aria-pressed={palette?.id === item.id}>{item.name}</button>)}</div>
+              <div className="palette-row" aria-label="Grabient palettes">{grabientPalettes.map((item) => <button key={item.id} onClick={() => applyPalette(item.id)} aria-pressed={palette?.id === item.id}>{item.name}</button>)}</div>
               {gradient.length > 0 && <div className="gradient-strip" aria-label="Selected gradient">{gradient.map((color) => <span key={color} style={{ background: color }} />)}</div>}
               <div className="parameter-grid">{(['roughness','metalness','clearcoat','transmission'] as const).map((key) => <label key={key}><span>{key.toUpperCase()} <b>{material.asset.parameters[key].toFixed(2)}</b></span><input type="range" min="0" max="1" step="0.01" value={material.asset.parameters[key]} onChange={(e) => material.updateParameter(key, Number(e.target.value))} /></label>)}</div>
-              <div className="action-row"><button className="primary-action" disabled={busy} onClick={() => void exportArmorPaint()}>MATERIALIZE → ARMORPAINT</button><button className="secondary-action" onClick={material.reset}>RESET</button></div>
+              <div className="action-row"><button className="secondary-action" disabled={busy} onClick={() => void generateMaps()}>GENERATE PBR MAPS</button><button className="primary-action" disabled={busy} onClick={() => void exportArmorPaint()}>MATERIALIZE → ARMORPAINT</button><button className="secondary-action" onClick={material.reset}>RESET</button></div>
             </section>
           </div>
         )}
