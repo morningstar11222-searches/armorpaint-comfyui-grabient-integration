@@ -4,35 +4,51 @@ Integrated material workspace combining an ArmorPaint-oriented 3D surface workfl
 
 ## Phase 1 — UI architecture
 
-Phase 1 establishes the production frontend shell while preserving the approved visual direction:
+Production frontend shell preserving the approved visual direction: React + TypeScript + Vite, isolated Three.js origami interaction, cinematic detail transition, 50/50 material-information composition, responsive behavior, and bundled dependencies.
 
-- React + TypeScript + Vite application structure.
-- Three.js scene isolated in `src/three/OrigamiStage.tsx`.
-- Interactive origami/octahedral surface with slow rotation, pointer parallax, hover response, raycast selection, and selected-facet extraction.
-- Cinematic workspace-to-detail-panel transition.
-- Detail panel divided vertically into two equal regions: material showcase above, information below.
-- Responsive behavior for desktop, tablet, and mobile widths.
-- Surface registry in `src/App.tsx`, ready to move into a domain package during later phases.
-- Production-safe dependency bundling through Vite rather than CDN scripts.
+## Phase 2 — Realtime PBR material engine
+
+Phase 2 replaces the static material placeholder with a real Three.js `MeshPhysicalMaterial` viewer:
+
+- Centralized PBR definitions for metal, stone, glass, acrylic, PVC, and carbon.
+- Realtime 3D material preview with physically based roughness, metalness, clearcoat, transmission, and IOR.
+- Procedural micro-surface noise for material breakup.
+- Pointer-responsive surface orientation and studio lighting.
+- Live roughness, metalness, clearcoat, and transmission controls.
+- Material preview remains the hero of the upper 50% panel; information remains below.
+
+## Phase 3 — Material data pipeline
+
+Phase 3 establishes the shared data contract needed before connecting external systems:
+
+- `MaterialAsset` model for PBR parameters and texture channels.
+- Versioned material state.
+- Explicit texture channels: baseColor, normal, roughness, metallic, height, mask.
+- `MaterialRepository` boundary for get/update/reset/serialize operations.
+- Persistence-ready JSON serialization.
+- Clean separation between material data and renderer/UI code.
+
+This is intentionally an adapter boundary: ComfyUI, Grabient, and ArmorPaint are not falsely represented as connected yet.
 
 ## Development
 
 ```bash
 npm install
 npm run dev
-```
-
-Validation commands:
-
-```bash
 npm run typecheck
 npm run build
 ```
 
-## Phase boundary
+## Current phase chain
 
-Phase 1 does **not** claim the Phase 2 material engine or the ComfyUI/Grabient/ArmorPaint integrations are complete. The current material preview is a UI placeholder; real PBR material rendering begins in Phase 2.
+`main` → `phase-1/ui-architecture` → `phase-2/material-engine` → `phase-3/material-data-pipeline`
 
-## Next phase
+Open pull requests:
 
-Phase 2 replaces the material preview with a reusable Three.js PBR material viewer and material-definition pipeline while preserving the Phase 1 choreography and information architecture.
+- Phase 1: UI architecture
+- Phase 2: realtime PBR material engine
+- Phase 3: material data pipeline
+
+## Next
+
+Phase 4 should implement the Grabient adapter and palette-to-material mapping, followed by Phase 5 for ComfyUI workflow execution and generated texture-map ingestion.
