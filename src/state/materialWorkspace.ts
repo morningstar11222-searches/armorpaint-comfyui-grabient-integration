@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { materialDefinitions } from '../data/materials';
 import { createMaterialRepository, type MaterialRepository } from '../material/MaterialRepository';
 import type { SurfaceId } from '../three/OrigamiStage';
@@ -18,6 +18,10 @@ export function useMaterialWorkspace(surface: SurfaceId) {
   if (!repositoryRef.current) repositoryRef.current = createMaterialRepository(createInitialAssets());
   const repository = repositoryRef.current;
   const [asset, setAsset] = useState(() => repository.get(surface));
+
+  useEffect(() => {
+    setAsset(repository.get(surface));
+  }, [repository, surface]);
 
   const updateParameter = useCallback(<K extends keyof MaterialAsset['parameters']>(key: K, value: MaterialAsset['parameters'][K]) => {
     setAsset(repository.update(surface, { [key]: value }));
