@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { materialDefinitions } from '../data/materials';
 import type { SurfaceId } from '../three/OrigamiStage';
-import type { MaterialAsset } from '../types/material';
+import type { MaterialAsset, TextureChannel, TextureReference } from '../types/material';
 
 function assetFromSurface(surface: SurfaceId): MaterialAsset {
   const def = materialDefinitions[surface];
@@ -32,7 +32,13 @@ export function useMaterialWorkspace(surface: SurfaceId) {
   const updateParameter = useCallback(<K extends keyof MaterialAsset['parameters']>(key: K, value: MaterialAsset['parameters'][K]) => {
     setAssets((current) => ({ ...current, [surface]: { ...current[surface], version: current[surface].version + 1, parameters: { ...current[surface].parameters, [key]: value } } }));
   }, [surface]);
+  const ingestTextures = useCallback((textures: Partial<Record<TextureChannel, TextureReference>>) => {
+    setAssets((current) => ({
+      ...current,
+      [surface]: { ...current[surface], version: current[surface].version + 1, textures: { ...current[surface].textures, ...textures } },
+    }));
+  }, [surface]);
   const reset = useCallback(() => setAssets((current) => ({ ...current, [surface]: assetFromSurface(surface) })), [surface]);
 
-  return useMemo(() => ({ asset, updateParameter, reset }), [asset, reset, updateParameter]);
+  return useMemo(() => ({ asset, updateParameter, ingestTextures, reset }), [asset, ingestTextures, reset, updateParameter]);
 }
