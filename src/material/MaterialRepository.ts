@@ -1,7 +1,10 @@
 import type { MaterialAsset, TextureChannel, TextureReference } from '../types/material';
 import type { SurfaceId } from '../three/OrigamiStage';
 
-export type MaterialPatch = Partial<MaterialAsset['parameters']> & { textures?: Partial<Record<TextureChannel, TextureReference>> };
+export type MaterialPatch = Partial<MaterialAsset['parameters']> & {
+  textures?: Partial<Record<TextureChannel, TextureReference>>;
+  metadata?: MaterialAsset['metadata'];
+};
 
 export interface MaterialRepository {
   get(surface: SurfaceId): MaterialAsset;
@@ -16,8 +19,14 @@ export function createMaterialRepository(initial: Record<SurfaceId, MaterialAsse
     get: (surface) => structuredClone(assets[surface]),
     update: (surface, patch) => {
       const current = assets[surface];
-      assets[surface] = { ...current, version: current.version + 1, parameters: { ...current.parameters, ...patch }, textures: { ...current.textures, ...(patch.textures ?? {}) } };
-      delete (assets[surface].parameters as Record<string, unknown>).textures;
+      const { textures, metadata, ...parameters } = patch;
+      assets[surface] = {
+        ...current,
+        version: current.version + 1,
+        parameters: { ...current.parameters, ...parameters },
+        textures: { ...current.textures, ...(textures ?? {}) },
+        metadata: { ...current.metadata, ...(metadata ?? {}) },
+      };
       return structuredClone(assets[surface]);
     },
     reset: (surface) => {
