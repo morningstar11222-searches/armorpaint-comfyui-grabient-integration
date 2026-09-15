@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { materialDefinitions } from '../data/materials';
 import { createMaterialRepository, type MaterialRepository } from '../material/MaterialRepository';
 import type { SurfaceId } from '../three/OrigamiStage';
@@ -19,10 +19,20 @@ export function useMaterialWorkspace(surface: SurfaceId) {
   const repository = repositoryRef.current;
   const [asset, setAsset] = useState(() => repository.get(surface));
 
+  useEffect(() => setAsset(repository.get(surface)), [repository, surface]);
+
+  const replace = useCallback((next: MaterialAsset) => {
+    setAsset(repository.update(surface, {
+      ...next.parameters,
+      textures: next.textures,
+      metadata: next.metadata,
+    }));
+  }, [repository, surface]);
+
   const updateParameter = useCallback(<K extends keyof MaterialAsset['parameters']>(key: K, value: MaterialAsset['parameters'][K]) => {
     setAsset(repository.update(surface, { [key]: value }));
   }, [repository, surface]);
   const reset = useCallback(() => setAsset(repository.reset(surface)), [repository, surface]);
 
-  return useMemo(() => ({ asset, updateParameter, reset, serialize: () => repository.serialize(surface) }), [asset, reset, repository, surface, updateParameter]);
+  return useMemo(() => ({ asset, replace, updateParameter, reset, serialize: () => repository.serialize(surface) }), [asset, replace, reset, repository, surface, updateParameter]);
 }
