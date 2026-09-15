@@ -7,7 +7,7 @@ import { grabientAdapter } from './integrations/grabient/adapter';
 import { createArmorPaintImportManifest } from './integrations/armorpaint';
 import { materializeArmorPaintManifest, saveMaterializedTexture } from './integrations/materialize';
 import { runMaterialPipeline } from './integrations/materialPipeline';
-import { getConfiguredComfyWorkflow } from './config';
+import { getConfiguredComfyWorkflow, getConfiguredWorkflowBindings } from './config';
 import { useMaterialWorkspace } from './state/materialWorkspace';
 
 export default function App() {
@@ -33,7 +33,7 @@ export default function App() {
     setBusy(true); setStatus('PREPARING COMFYUI');
     try {
       const result = await runMaterialPipeline(material.asset, palette, {
-        workflow: getConfiguredComfyWorkflow(),
+        workflow: getConfiguredComfyWorkflow(), workflowBindings: getConfiguredWorkflowBindings(),
         onStatus: (next) => setStatus(next.toUpperCase()),
       });
       material.updateAsset(result.asset);
