@@ -2,52 +2,68 @@
 
 Integrated material workspace combining an ArmorPaint-oriented 3D surface workflow, ComfyUI generation, and Grabient color workflows.
 
-## Phase 5 — ComfyUI workflow execution + generated texture-map ingestion
+## Completed integration chain
 
-Phase 5 adds the runtime bridge from the material workspace to a local ComfyUI server and routes generated PBR image outputs back into the shared material asset.
+**Surface selection → Grabient palette → MaterialAsset → ComfyUI workflow → generated PBR maps → Three.js preview → local texture materialization → ArmorPaint import manifest/plugin**.
 
-### Implemented
+### ComfyUI execution
 
-- `src/integrations/comfyui.ts` — typed ComfyUI client for `/prompt`, `/history/:promptId`, output URL construction, cancellation, timeout handling, and PBR channel detection.
-- `src/state/comfyGeneration.ts` — generation lifecycle state (`idle`, `queued`, `running`, `complete`, `error`) plus texture ingestion.
-- `src/integrations/textureWorkflow.ts` — explicit workflow parameter binding so material controls can be injected into a ComfyUI workflow without mutating the source workflow.
-- `src/state/materialWorkspace.ts` — generated maps can now be merged into the selected material asset with version increments.
-- `src/three/MaterialViewer.tsx` — generated base-color, normal, roughness, metallic, and height maps are loaded into the live Three.js PBR material.
-- `vite.config.ts` — development proxy from `/comfy/*` to the standard local ComfyUI server at `127.0.0.1:8188`.
-- `src/integrations/comfyui.test.ts` — mocked queue/history integration coverage.
+`src/integrations/comfyui.ts` queues API-format workflows through `/prompt`, polls `/history/:promptId`, supports cancellation/timeouts, constructs output URLs, and recognizes baseColor/normal/roughness/metallic/height/mask outputs. `src/state/comfyGeneration.ts` provides generation lifecycle state and texture ingestion. `src/integrations/textureWorkflow.ts` injects explicitly bound material parameters into a cloned workflow. The Vite development proxy exposes `/comfy` to a local ComfyUI instance on `127.0.0.1:8188`.
 
-### Expected workflow
+### Grabient integration
 
-1. The UI creates or loads a ComfyUI API-format workflow.
-2. Material parameters are bound to explicitly configured workflow inputs.
-3. The workflow is queued through `/comfy/prompt`.
-4. The client polls `/comfy/history/:promptId` until generated images are available.
-5. Output filenames are mapped to `baseColor`, `normal`, `roughness`, `metallic`, `height`, or `mask` when their names are recognizable.
-6. Generated texture references are merged into the selected `MaterialAsset`.
-7. The Three.js viewer consumes the generated URLs as PBR texture maps.
+`src/types/grabient.ts`, `src/integrations/grabient/adapter.ts`, and `src/data/grabientPalettes.ts` preserve Grabient's cosine-gradient representation and deterministically sample it into material colors. Palette provenance is stored in explicit `MaterialMetadata`. The UI exposes curated palettes without coupling the application to Grabient's hosted service.
 
-## Phase 6 — ArmorPaint texture import bridge
+### ArmorPaint bridge
 
-Phase 6 establishes the final local handoff from generated texture references into ArmorPaint without changing the shared material contract.
+`src/integrations/armorpaint.ts` converts generated texture references into deterministic import manifests. `armorpaint-plugin/comfy_texture_bridge.c` provides the native ArmorPaint import boundary using ArmorPaint's plugin API and native texture importer. The web layer does not pretend that ArmorPaint accepts arbitrary network URLs.
 
-### Implemented
+### Unified pipeline
 
-- `src/integrations/armorpaint.ts` — typed ArmorPaint import manifest and command-plan boundary derived from the shared `MaterialAsset`.
-- `armorpaint-plugin/comfy_texture_bridge.c` — ArmorPaint plugin UI that accepts local generated-map paths and invokes ArmorPaint's native texture importer for base color, normal, roughness, metallic, height, and mask maps.
+`src/integrations/materialPipeline.ts` composes palette application, optional ComfyUI generation, texture ingestion, and ArmorPaint manifest creation into one orchestration boundary. `src/integrations/materialize.ts` converts generated URLs into local browser files using the File System Access API where available, with a download fallback. The material workspace exposes atomic asset updates so adapters can compose without duplicating state logic.
 
-The plugin uses ArmorPaint's existing plugin API and native `import_texture_run()` path rather than modifying ArmorPaint internals. ArmorPaint's current source exposes that importer as a callable function and plugin examples use `plugin_create()` / `plugin_notify_on_ui()` for UI extensions.
+### Validation
 
-### Phase 6 handoff
+`.github/workflows/integration-validation.yml` runs on pushes to `main`/`integration/**` and pull requests and executes:
 
-1. ComfyUI generates PBR maps through Phase 5.
-2. The shared `MaterialAsset` records each generated texture reference.
-3. `createArmorPaintImportManifest()` converts those references into deterministic filenames and source URLs.
-4. The generated images are made available as local files for ArmorPaint.
-5. In ArmorPaint, the Comfy Texture Bridge plugin is opened and the local paths are supplied to the matching channel fields.
-6. `Import Texture Maps` calls ArmorPaint's native texture importer for every supplied map.
+```text
+npm install
+npm run typecheck
+npm test
+npm run build
+```
 
-Phase 6 deliberately does **not** invent a network-download API inside ArmorPaint or alter ArmorPaint's core importer. The web application remains responsible for obtaining/generated-file localization; the plugin is the native import boundary.
+Local validation can use the same commands.
 
-## Remaining integration boundary
+## Deployment model
 
-Grabient palette generation is implemented at the adapter boundary in Phase 4. Phase 6 does not execute Grabient workflows inside ArmorPaint; it preserves the shared material/palette data flow already established by the earlier phases.
+The application is a browser frontend. ComfyUI remains an external local service, and ArmorPaint remains a native desktop application. A production desktop distribution should provide a localhost/native-host bridge for process launching and filesystem operations; a normal browser deployment cannot silently launch ArmorPaint or write arbitrary files.
+
+The intended production boundary is therefore:
+
+```text
+Browser UI
+  ├─ ComfyUI HTTP adapter ──> ComfyUI
+  ├─ MaterialAsset state
+  └─ local materialization/native host ──> ArmorPaint plugin/native importer
+```
+
+## Known limitations
+
+- A real ComfyUI generation still requires a running ComfyUI installation, compatible workflow, models/custom nodes, and sufficient GPU/CPU resources.
+- The current ComfyUI client uses history polling rather than websocket progress streaming.
+- PBR channel detection remains filename-based unless the workflow supplies explicit channel metadata.
+- `MaterialAsset` texture references are URLs until materialized locally; ArmorPaint requires local filesystem paths.
+- The browser fallback downloads files individually. A native host can replace this with an atomic project-directory export.
+- The ArmorPaint C plugin must be compiled against the target ArmorPaint build/API before runtime use.
+- The current command plan opens an ArmorPaint project; the native plugin performs texture import. It does not claim an unsupported CLI texture-import switch.
+- The frontend cannot prove a real end-to-end ComfyUI → filesystem → ArmorPaint run until those applications are present in the validation environment.
+- Grabient's upstream repository is licensed under FSL-1.1-ALv2; this integration uses its documented cosine-gradient representation rather than copying the hosted service.
+
+## Source projects
+
+- ArmorPaint: `armory3d/armorpaint`
+- Grabient: `johnkorzhuk/grabient`
+- ComfyUI: `Comfy-Org/ComfyUI`
+
+The integration avoids modifying upstream cores and keeps external behavior behind adapters.
