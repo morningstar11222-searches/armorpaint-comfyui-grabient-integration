@@ -28,7 +28,21 @@ Phase 3 establishes the shared data contract needed before connecting external s
 - Persistence-ready JSON serialization.
 - Clean separation between material data and renderer/UI code.
 
-This is intentionally an adapter boundary: ComfyUI, Grabient, and ArmorPaint are not falsely represented as connected yet.
+## Phase 4 — Grabient adapter
+
+Phase 4 adds a real, deterministic adapter around Grabient's cosine-gradient representation rather than embedding Grabient UI code into the renderer.
+
+- Typed `GrabientPalette` and cosine coefficient contract.
+- Deterministic cosine-gradient sampling with bounded stop counts.
+- Palette-to-material mapping for base color and accent lighting.
+- Palette provenance stored in `MaterialAsset.metadata`.
+- Four curated starter palettes for the workspace: Obsidian Aurora, Graphite Mint, Smoked Copper, and Deep Ocean.
+- One-click palette application from the material information panel.
+- Existing PBR parameters remain intact when a palette is applied.
+- Material repository persists palette metadata and serialized material state.
+- Adapter unit tests and GitHub Actions validation for typecheck, tests, and production build.
+
+The adapter follows Grabient's documented cosine model: each RGB channel is sampled from offset, amplitude, frequency, and phase coefficients.
 
 ## Development
 
@@ -36,19 +50,30 @@ This is intentionally an adapter boundary: ComfyUI, Grabient, and ArmorPaint are
 npm install
 npm run dev
 npm run typecheck
+npm test
 npm run build
 ```
 
 ## Current phase chain
 
-`main` → `phase-1/ui-architecture` → `phase-2/material-engine` → `phase-3/material-data-pipeline`
+`main` → `phase-1/ui-architecture` → `phase-2/material-engine` → `phase-3/material-data-pipeline` → `phase-4/grabient-adapter`
 
-Open pull requests:
+## Phase 4 files
 
-- Phase 1: UI architecture
-- Phase 2: realtime PBR material engine
-- Phase 3: material data pipeline
+- `src/types/grabient.ts` — integration contract.
+- `src/integrations/grabient/adapter.ts` — sampling and material mapping.
+- `src/data/grabientPalettes.ts` — curated palette presets.
+- `src/data/surfaces.ts` — extracted surface registry.
+- `src/types/material.ts` — palette provenance metadata.
+- `src/material/MaterialRepository.ts` — metadata persistence.
+- `src/state/materialWorkspace.ts` — atomic material replacement and surface synchronization.
+- `src/three/MaterialViewer.tsx` — palette-driven accent lighting.
+- `src/App.tsx` / `src/styles.css` — palette controls and responsive presentation.
+- `src/integrations/grabient/adapter.test.ts` — adapter tests.
+- `.github/workflows/phase-4-validation.yml` — CI validation.
 
-## Next
+## Scope boundary
 
-Phase 4 should implement the Grabient adapter and palette-to-material mapping, followed by Phase 5 for ComfyUI workflow execution and generated texture-map ingestion.
+Phase 4 does not claim a live dependency on the Grabient web application or database. It implements the compatible gradient representation and an isolated adapter boundary so Phase 5 can connect ComfyUI generation without coupling the UI to either external system.
+
+Phase 5 is the ComfyUI workflow execution and generated texture-map ingestion layer.
