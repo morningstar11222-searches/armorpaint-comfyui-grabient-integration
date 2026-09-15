@@ -16,6 +16,10 @@ function createNoiseTexture(size = 256) {
   return texture;
 }
 
+function accentLightColor(asset: MaterialAsset) {
+  return asset.metadata?.grabientAccentColor ?? '#718cff';
+}
+
 export default function MaterialViewer({ surface, asset }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const assetRef = useRef(asset); assetRef.current = asset;
@@ -37,7 +41,7 @@ export default function MaterialViewer({ surface, asset }: Props) {
     let raf = 0; let disposed = false;
     const resize = () => { const rect = host.getBoundingClientRect(); camera.aspect = Math.max(rect.width, 1) / Math.max(rect.height, 1); camera.updateProjectionMatrix(); renderer.setSize(Math.max(rect.width, 1), Math.max(rect.height, 1), false); };
     window.addEventListener('resize', resize); resize();
-    const tick = () => { if (disposed) return; const params = assetRef.current.parameters; material.color.set(params.baseColor); material.roughness = params.roughness; material.metalness = params.metalness; material.clearcoat = params.clearcoat; material.clearcoatRoughness = params.clearcoatRoughness; material.transmission = params.transmission; material.ior = params.ior; material.envMapIntensity = 1.5; noise.repeat.set(definitionSurface === 'carbon' ? 18 : definitionSurface === 'pvc' ? 7 : 4, definitionSurface === 'carbon' ? 18 : definitionSurface === 'pvc' ? 7 : 4); mesh.rotation.y += 0.0025; mesh.rotation.x += (target.y * 0.16 - mesh.rotation.x) * 0.025; mesh.rotation.z += (target.x * 0.12 - mesh.rotation.z) * 0.025; renderer.render(scene, camera); raf = requestAnimationFrame(tick); };
+    const tick = () => { if (disposed) return; const params = assetRef.current.parameters; material.color.set(params.baseColor); material.roughness = params.roughness; material.metalness = params.metalness; material.clearcoat = params.clearcoat; material.clearcoatRoughness = params.clearcoatRoughness; material.transmission = params.transmission; material.ior = params.ior; material.envMapIntensity = 1.5; fill.color.set(accentLightColor(assetRef.current)); noise.repeat.set(definitionSurface === 'carbon' ? 18 : definitionSurface === 'pvc' ? 7 : 4, definitionSurface === 'carbon' ? 18 : definitionSurface === 'pvc' ? 7 : 4); mesh.rotation.y += 0.0025; mesh.rotation.x += (target.y * 0.16 - mesh.rotation.x) * 0.025; mesh.rotation.z += (target.x * 0.12 - mesh.rotation.z) * 0.025; renderer.render(scene, camera); raf = requestAnimationFrame(tick); };
     tick();
     return () => { disposed = true; cancelAnimationFrame(raf); renderer.domElement.removeEventListener('pointermove', move); window.removeEventListener('resize', resize); geometry.dispose(); noise.dispose(); material.dispose(); renderer.dispose(); if (renderer.domElement.parentNode === host) host.removeChild(renderer.domElement); };
   }, [definitionSurface]);
