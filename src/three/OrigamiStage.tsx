@@ -29,7 +29,7 @@ export default function OrigamiStage({ active, onSelect }: { active: SurfaceSele
     camera.position.set(0, 0.15, 7.2);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.05;
     renderer.domElement.setAttribute('aria-label', 'Interactive material origami surface');
