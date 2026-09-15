@@ -9,6 +9,13 @@ export type TextureReference = {
   generated?: boolean;
 };
 
+export type MaterialMetadata = {
+  grabientPaletteId?: string;
+  grabientPaletteName?: string;
+  grabientGradient?: string[];
+  grabientAccentColor?: string;
+};
+
 export type MaterialAsset = {
   id: string;
   surface: SurfaceId;
@@ -24,4 +31,5 @@ export type MaterialAsset = {
     ior: number;
   };
   textures: Partial<Record<TextureChannel, TextureReference>>;
+  metadata: MaterialMetadata;
 };
