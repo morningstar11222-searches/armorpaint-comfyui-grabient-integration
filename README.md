@@ -44,6 +44,10 @@ Phase 4 adds a real, deterministic adapter around Grabient's cosine-gradient rep
 
 The adapter follows Grabient's documented cosine model: each RGB channel is sampled from offset, amplitude, frequency, and phase coefficients.
 
+## Licensing boundary
+
+The upstream Grabient project currently uses FSL-1.1-ALv2. This repository does not vendor the Grabient application source; Phase 4 implements an independent adapter for the published gradient representation. Review `THIRD_PARTY_NOTICES.md` before commercial distribution, especially if the product could constitute a Competing Use under the upstream license.
+
 ## Development
 
 ```bash
@@ -71,6 +75,7 @@ npm run build
 - `src/App.tsx` / `src/styles.css` — palette controls and responsive presentation.
 - `src/integrations/grabient/adapter.test.ts` — adapter tests.
 - `.github/workflows/phase-4-validation.yml` — CI validation.
+- `THIRD_PARTY_NOTICES.md` — upstream licensing boundary.
 
 ## Scope boundary
 
