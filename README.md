@@ -26,8 +26,28 @@ Phase 5 adds the runtime bridge from the material workspace to a local ComfyUI s
 6. Generated texture references are merged into the selected `MaterialAsset`.
 7. The Three.js viewer consumes the generated URLs as PBR texture maps.
 
-### Local ComfyUI requirement
+## Phase 6 — ArmorPaint texture import bridge
 
-For development, run ComfyUI on its normal local API port (`8188`). The Vite proxy keeps browser requests same-origin at `/comfy` and forwards them to the local ComfyUI process.
+Phase 6 establishes the final local handoff from generated texture references into ArmorPaint without changing the shared material contract.
 
-Phase 5 does **not** claim an ArmorPaint export/import bridge or Grabient workflow execution. Those remain separate integration boundaries.
+### Implemented
+
+- `src/integrations/armorpaint.ts` — typed ArmorPaint import manifest and command-plan boundary derived from the shared `MaterialAsset`.
+- `armorpaint-plugin/comfy_texture_bridge.c` — ArmorPaint plugin UI that accepts local generated-map paths and invokes ArmorPaint's native texture importer for base color, normal, roughness, metallic, height, and mask maps.
+
+The plugin uses ArmorPaint's existing plugin API and native `import_texture_run()` path rather than modifying ArmorPaint internals. ArmorPaint's current source exposes that importer as a callable function and plugin examples use `plugin_create()` / `plugin_notify_on_ui()` for UI extensions.
+
+### Phase 6 handoff
+
+1. ComfyUI generates PBR maps through Phase 5.
+2. The shared `MaterialAsset` records each generated texture reference.
+3. `createArmorPaintImportManifest()` converts those references into deterministic filenames and source URLs.
+4. The generated images are made available as local files for ArmorPaint.
+5. In ArmorPaint, the Comfy Texture Bridge plugin is opened and the local paths are supplied to the matching channel fields.
+6. `Import Texture Maps` calls ArmorPaint's native texture importer for every supplied map.
+
+Phase 6 deliberately does **not** invent a network-download API inside ArmorPaint or alter ArmorPaint's core importer. The web application remains responsible for obtaining/generated-file localization; the plugin is the native import boundary.
+
+## Remaining integration boundary
+
+Grabient palette generation is implemented at the adapter boundary in Phase 4. Phase 6 does not execute Grabient workflows inside ArmorPaint; it preserves the shared material/palette data flow already established by the earlier phases.
